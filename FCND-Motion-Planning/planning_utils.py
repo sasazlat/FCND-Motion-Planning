@@ -159,5 +159,13 @@ def heuristic(position, goal_position):
 
 def read_home_lat_lon(csv_file):
     with open(csv_file, newline='') as f:
-        first_line = csv.reader(f)
-    pass
+        first_line = list(csv.reader(f, delimiter=','))[0]
+    lat0 = float(first_line[0].split(" ")[1])
+    lon0 = float(first_line[1].split(" ")[1])
+    return lat0, lon0
+    
+
+
+#if __name__ == "__main__":
+#    lat0, lon0 = read_home_lat_lon("colliders.csv")
+#    print (lat0, lon0)

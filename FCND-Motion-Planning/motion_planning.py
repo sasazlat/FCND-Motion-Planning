@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import numpy as np
 
-from planning_utils import a_star_grid, heuristic, create_grid
+from planning_utils import a_star_grid, heuristic, create_grid, read_home_lat_lon
 from udacidrone import Drone
 from udacidrone.connection import MavlinkConnection
 from udacidrone.messaging import MsgID
@@ -120,13 +120,16 @@ class MotionPlanning(Drone):
         self.target_position[2] = TARGET_ALTITUDE
 
         # TODO: read lat0, lon0 from colliders into floating point values
-
+        lat0, lon0 = read_home_lat_lon("colliders.csv")
         
         # TODO: set home position to (lon0, lat0, 0)
+        self.set_home_position(lon0, lat0, 0)
 
         # TODO: retrieve current global position
+        current_global_position = self.global_position
  
         # TODO: convert to current local position using global_to_local()
+        current_local_position = global_to_local(current_global_position, self.global_home)
         
         print('global home {0}, position {1}, local position {2}'.format(self.global_home, self.global_position,
                                                                          self.local_position))
