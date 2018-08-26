@@ -30,10 +30,19 @@
     <Content Include=".gitignore" />
     <Content Include="CODEOWNERS" />
     <Content Include="colliders.csv" />
+    <Content Include="misc\.DS_Store" />
+    <Content Include="misc\double_helix.gif" />
+    <Content Include="misc\enroute.png" />
+    <Content Include="misc\high_up.png" />
+    <Content Include="misc\in_the_trees.png" />
+    <Content Include="misc\map.png" />
     <Content Include="README.md" />
     <Content Include="setup.cfg" />
     <Content Include="Untitled.ipynb" />
     <Content Include="writeup_template.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="misc\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
