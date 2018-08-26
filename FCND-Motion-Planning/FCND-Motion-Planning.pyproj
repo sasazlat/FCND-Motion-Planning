@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>fd8462a4-481a-4a20-ba08-84bc05ebc1df</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>FCND_Motion_Planning.py</StartupFile>
+    <StartupFile>motion_planning.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,7 +22,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="backyard_flyer_solution.py" />
-    <Compile Include="FCND_Motion_Planning.py" />
     <Compile Include="motion_planning.py" />
     <Compile Include="planning_utils.py" />
   </ItemGroup>
