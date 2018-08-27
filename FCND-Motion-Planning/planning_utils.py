@@ -1,7 +1,7 @@
 from enum import Enum
 from queue import PriorityQueue
 import numpy as np
-import csv
+from bresenham import bresenham
 
 
 def create_grid(data, drone_altitude, safety_distance):
@@ -151,70 +151,32 @@ def a_star_grid(grid, h, start, goal):
         print('**********************') 
     return path[::-1], path_cost
 
+def prune_path_grid(grid, path):
 
-def a_star_graph(graph, h, start, goal):
+    pruned_path = [p for p in path]
 
-    path = []
-    path_cost = 0
-    queue = PriorityQueue()
-    queue.put((0, start))
-    visited = set(start)
-
-    branch = {}
-    found = False
-    
-    while not queue.empty():
-        item = queue.get()
-        current_node = item[1]
-        if current_node == start:
-            current_cost = 0.0
-        else:              
-            current_cost = branch[current_node][0]
-            
-        if current_node == goal:        
-            print('Found a path.')
-            found = True
-            break
+    i = 0
+    while i < len(pruned_path) - 2:
+        p1, p3 = pruned_path[i], pruned_path[i + 2]
+        cells = list(bresenham(p1[0], p1[1], p3[0], p3[1]))
+        if can_connect(cells, grid):
+            pruned_path.remove(pruned_path[i + 1])
         else:
-            for next_node in graph[current_node]:
-                # get the tuple representation
-                cost = graph.edges[current_node, next_node]['weight']
-                branch_cost = current_cost + cost
-                queue_cost = branch_cost + h(next_node, goal)
-                
-                if next_node not in visited:                
-                    visited.add(next_node)               
-                    branch[next_node] = (branch_cost, current_node)
-                    queue.put((queue_cost, next_node))
-             
-    if found:
-        # retrace steps
-        n = goal
-        path_cost = branch[n][0]
-        path.append(goal)
-        while branch[n][1] != start:
-            path.append(branch[n][1])
-            n = branch[n][1]
-        path.append(branch[n][1])
-    else:
-        print('**********************')
-        print('Failed to find a path!')
-        print('**********************') 
-    return path[::-1], path_cost
+            i += 1
+    return pruned_path
+
+def can_connect(cells, grid):
+    connected = True
+    for cell in cells:
+        if np.min(cell) < 0 or cell[0] >= grid.shape[0] or cell[1] >= grid.shape[1]:
+            return not connected
+        if grid[cell[0], cell[1]] == 1:
+            return not connected
+    return connected
+                          
 
 
 
-def heuristic(position, goal_position):
-    return np.linalg.norm(np.array(position) - np.array(goal_position))
-
-
-def read_home_lat_lon(csv_file):
-    with open(csv_file, newline='') as f:
-        first_line = list(csv.reader(f, delimiter=','))[0]
-    lat0 = float(first_line[0].split(" ")[1])
-    lon0 = float(first_line[1].split(" ")[1])
-    return lat0, lon0
-    
 
 
 #if __name__ == "__main__":
