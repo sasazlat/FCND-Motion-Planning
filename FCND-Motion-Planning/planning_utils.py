@@ -51,13 +51,13 @@ class Action(Enum):
     """
 
     NORTH = (-1, 0, 1)
-    NORTH_EAST = (-1, 1, 1)
+    NORTH_EAST = (-1, 1, np.sqrt(2))
     EAST = (0, 1, 1)
-    SOUTH_EAST = (1, 1, 1)
+    SOUTH_EAST = (1, 1, np.sqrt(2))
     SOUTH = (1, 0, 1)
-    SOUTH_WEST = (1, -1, 1)
+    SOUTH_WEST = (1, -1, np.sqrt(2))
     WEST = (0, -1, 1)
-    NORTH_WEST = (-1, -1, 1)
+    NORTH_WEST = (-1, -1, np.sqrt(2))
 
 
     @property
@@ -98,7 +98,6 @@ def valid_actions(grid, current_node):
         valid_actions.remove(Action.NORTH_WEST)
 
     return valid_actions
-
 
 def a_star_grid(grid, h, start, goal):
 
@@ -151,7 +150,7 @@ def a_star_grid(grid, h, start, goal):
         print('**********************') 
     return path[::-1], path_cost
 
-def prune_path_grid(grid, path):
+def prune_path_bres(grid, path):
 
     pruned_path = [p for p in path]
 
@@ -173,7 +172,21 @@ def can_connect(cells, grid):
         if grid[cell[0], cell[1]] == 1:
             return not connected
     return connected
-                          
+
+def colinearity_check(p1, p2, p3):
+    det = p1[0] * (p2[1] - p3[1]) + p2[0] * (p3[1] - p1[1]) + p3[0] * (p1[1] - p2[1])
+    return det == 0
+
+def prune_path_colinearity(grid, path):
+    pruned_path = [p for p in path]
+    i = 0
+    while i < len(pruned_path) - 2:
+        p1, p2, p3 = pruned_path[i], pruned_path[i + 1], pruned_path[i + 2]
+        if colinearity_check(p1,p2,p3):
+            pruned_path.remove(pruned_path[i + 1])
+        else:
+            i += 1
+    return pruned_path
 
 
 
