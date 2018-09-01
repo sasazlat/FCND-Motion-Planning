@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>fd8462a4-481a-4a20-ba08-84bc05ebc1df</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>motion_planning_grid.py</StartupFile>
+    <StartupFile>graph\motion_planning_graph.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,12 +22,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="backyard_flyer_solution.py" />
-    <Compile Include="motion_planning_graph.py">
+    <Compile Include="graph\motion_planning_graph.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="graph\sampling.py" />
     <Compile Include="motion_planning_grid.py" />
     <Compile Include="planning_utils.py" />
-    <Compile Include="planning_utils_graph.py">
+    <Compile Include="graph\planning_utils_graph.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="utils.py">
@@ -52,6 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="misc\" />
+    <Folder Include="graph\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
