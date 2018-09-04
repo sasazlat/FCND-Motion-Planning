@@ -14,6 +14,7 @@ from udacidrone import Drone
 from udacidrone.connection import MavlinkConnection
 from udacidrone.messaging import MsgID
 from udacidrone.frame_utils import global_to_local
+from scipy.spatial import Voronoi
 
 
 class States(Enum):
@@ -166,7 +167,8 @@ class MotionPlanning(Drone):
         # TODO - Create Graph NetworkX
         sampler = Sampler(data)
         polygons = sampler.polygons
-        nodes = sampler.sample(100)
+        polygon_centers = sampler.polygons_centers
+        v = Voronoi(polygon_centers)
         G = create_graph(nodes, 5, polygons)
         print (G.nodes())
         g_nodes = G.nodes()
