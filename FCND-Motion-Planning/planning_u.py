@@ -1,14 +1,9 @@
-import numpy as np
-import csv
-import networkx as nx
-
+from enum import Enum
 from queue import PriorityQueue
-from sklearn.neighbors import KDTree
-from shapely.geometry import Point, Polygon, LineString
+import numpy as np
 
 
-
-def create_grid_voronoi(data, drone_altitude, safety_distance):
+def create_grid(data, drone_altitude, safety_distance):
     """
     Returns a grid representation of a 2D configuration space
     based on given obstacle data, drone altitude and safety distance
@@ -43,7 +38,66 @@ def create_grid_voronoi(data, drone_altitude, safety_distance):
 
     return grid, int(north_min), int(east_min)
 
-def a_star_graph(graph, h, start, goal):
+
+# Assume all actions cost the same.
+class Action(Enum):
+    """
+    An action is represented by a 3 element tuple.
+    The first 2 values are the delta of the action relative
+    to the current grid position. The third and final value
+    is the cost of performing the action.
+    """
+
+    NORTH = (-1, 0, 1)
+    NORTH_EAST = (-1, 1, np.sqrt(2))
+    EAST = (0, 1, 1)
+    SOUTH_EAST = (1, 1, np.sqrt(2))
+    SOUTH = (1, 0, 1)
+    SOUTH_WEST = (1, -1, np.sqrt(2))
+    WEST = (0, -1, 1)
+    NORTH_WEST = (-1, -1, np.sqrt(2))
+
+    @property
+    def cost(self):
+        return self.value[2]
+
+    @property
+    def delta(self):
+        return (self.value[0], self.value[1])
+
+
+def valid_actions(grid, current_node):
+    """
+    Returns a list of valid actions given a grid and current node.
+    """
+    valid_actions = list(Action)
+    n, m = grid.shape[0] - 1, grid.shape[1] - 1
+    x, y = current_node
+
+    # check if the node is off the grid or
+    # it's an obstacle
+
+    if x - 1 < 0 or grid[x - 1, y] == 1:
+        valid_actions.remove(Action.NORTH)
+    if x - 1 < 0 or y + 1 > m or grid[x - 1, y + 1] == 1:
+        valid_actions.remove(Action.NORTH_EAST)
+    if y + 1 > m or grid[x, y + 1] == 1:
+        valid_actions.remove(Action.EAST)
+    if x + 1 > n or y + 1 > m or grid[x + 1, y + 1] == 1:
+        valid_actions.remove(Action.SOUTH_EAST)
+    if x + 1 > n or grid[x + 1, y] == 1:
+        valid_actions.remove(Action.SOUTH)
+    if x + 1 > n or y - 1 < 0 or grid[x + 1, y - 1] == 1:
+        valid_actions.remove(Action.SOUTH_WEST)
+    if y - 1 < 0 or grid[x, y - 1] == 1:
+        valid_actions.remove(Action.WEST)
+    if x - 1 < 0 or y - 1 < 0 or grid[x - 1, y - 1] == 1:
+        valid_actions.remove(Action.NORTH_WEST)
+
+    return valid_actions
+
+
+def a_star(grid, h, start, goal):
 
     path = []
     path_cost = 0
@@ -67,15 +121,16 @@ def a_star_graph(graph, h, start, goal):
             found = True
             break
         else:
-            for next_node in graph[current_node]:
+            for action in valid_actions(grid, current_node):
                 # get the tuple representation
-                cost = graph.edges[current_node, next_node]['weight']
-                branch_cost = current_cost + cost
+                da = action.delta
+                next_node = (current_node[0] + da[0], current_node[1] + da[1])
+                branch_cost = current_cost + action.cost
                 queue_cost = branch_cost + h(next_node, goal)
                 
                 if next_node not in visited:                
                     visited.add(next_node)               
-                    branch[next_node] = (branch_cost, current_node)
+                    branch[next_node] = (branch_cost, current_node, action)
                     queue.put((queue_cost, next_node))
              
     if found:
@@ -93,48 +148,7 @@ def a_star_graph(graph, h, start, goal):
         print('**********************') 
     return path[::-1], path_cost
 
+
+
 def heuristic(position, goal_position):
     return np.linalg.norm(np.array(position) - np.array(goal_position))
-
-def read_home_lat_lon(csv_file):
-    with open(csv_file, newline='') as f:
-        first_line = list(csv.reader(f, delimiter=','))[0]
-    lat0 = float(first_line[0].split(" ")[1])
-    lon0 = float(first_line[1].split(" ")[1])
-    return lat0, lon0
-
-def can_connect(n1, n2, polygons):
-    l = LineString([n1, n2])
-    for p in polygons:
-        if p.crosses(l) and p.height >= min(n1[2], n2[2]):
-            return False
-    return True
-
-def create_graph(nodes, k, polygons):
-    g = nx.Graph()
-    tree = KDTree(nodes, metric="euclidean")
-    for n1 in nodes:
-        dist, idxs = tree.query([n1], k)
-        i = 0
-        for idx in idxs[0]:
-            n2 = nodes[idx]
-            if n2 == n1:
-                i += 1
-                continue
-            if can_connect(n1, n2, polygons):
-                g.add_edge(n1,n2,weight=dist[0][i])
-                i += 1
-    return g
-
-def closest_point(nodes, current_point):
-    """
-    Compute the closest point in the `graph`
-    to the `current_point`.
-    """
-    pts = []
-    for n in nodes:
-        pts.append((n))    
-    tree = KDTree(pts, metric='euclidean')
-    _, idx = tree.query(np.array([current_point]).reshape(1,-1))
-    p = pts[int(idx[0][0])]
-    return p

@@ -1,13 +1,13 @@
 import argparse
 import time
 import msgpack
+import pickle
 from enum import Enum, auto
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from planning_utils import a_star_grid, create_grid, prune_path_bres
-from utils import heuristic, read_home_lat_lon
+from planning_utils import a_star_grid, create_grid, create_grid_and_edges, prune_path_bres, heuristic, read_home_lat_lon, create_nx_graph, find_closest_point, a_star_graph, prune_path_2d, prune_path_colinearity
 from udacidrone import Drone
 from udacidrone.connection import MavlinkConnection
 from udacidrone.messaging import MsgID
@@ -139,7 +139,7 @@ class MotionPlanning(Drone):
         data = np.loadtxt('colliders.csv', delimiter=',', dtype='Float64', skiprows=2)
         
         # Define a grid for a particular altitude and safety margin around obstacles
-        grid, north_offset, east_offset = create_grid(data, TARGET_ALTITUDE, SAFETY_DISTANCE)
+        grid, edges, north_offset, east_offset = create_grid_and_edges(data, TARGET_ALTITUDE, SAFETY_DISTANCE)
         print("North offset = {0}, east offset = {1}".format(north_offset, east_offset))
         # Define starting point on the grid (this is just grid center)
         grid_start = (-north_offset, -east_offset)
@@ -160,10 +160,17 @@ class MotionPlanning(Drone):
         # or move to a different search space such as a graph (not done here)
         print('Local Start and Goal: ', start, goal)
 
+        G = create_nx_graph(edges)
+        start_node = find_closest_point(G, start)
+        goal_node = find_closest_point(G, goal)
 
-        path, _ = a_star_grid(grid, heuristic, start, goal)
+
+        path = a_star_graph(G, heuristic, start_node, goal_node)
         # TODO: prune path to minimize number of waypoints
-        pruned_path = prune_path_bres(grid, path)
+        pruned_path = prune_path_colinearity(grid, path)
+
+        # Prune the path in 2D
+        #smooth_path = prune_path_2d(path, grid)
                
         # TODO (if you're feeling ambitious): Try a different approach altogether!
 
@@ -183,9 +190,15 @@ class MotionPlanning(Drone):
 
 
         # Convert path to waypoints
-        waypoints = [[p[0] + north_offset, p[1] + east_offset, TARGET_ALTITUDE, 0] for p in pruned_path]
+        waypoints = [[int(p[0]) + north_offset, int(p[1]) + east_offset, TARGET_ALTITUDE, 0] for p in pruned_path]
+        with open("wp.p", mode="wb") as f:
+            pickle.dump(waypoints, f)
+
+        with open("wp.p", mode="rb") as f:
+            wp = pickle.load(f)
+
         # Set self.waypoints
-        self.waypoints = waypoints
+        self.waypoints = wp
         # TODO: send waypoints to sim (this is just for visualization of waypoints)
         self.send_waypoints()
 

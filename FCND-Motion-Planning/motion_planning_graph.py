@@ -1,15 +1,14 @@
 import argparse
 import time
 import msgpack
+import pickle
 from enum import Enum, auto
 
 import numpy as np
-import pickle
+import matplotlib.pyplot as plt
 
-from planning_utils_graph import a_star_graph, heuristic, read_home_lat_lon, create_graph, closest_point
-from planning_utils import create_grid
-from sampling import Sampler
-from sklearn.neighbors import KDTree
+
+from planning_utils_graph import *
 from udacidrone import Drone
 from udacidrone.connection import MavlinkConnection
 from udacidrone.messaging import MsgID
@@ -119,7 +118,7 @@ class MotionPlanning(Drone):
         self.flight_state = States.PLANNING
         print("Searching for a path ...")
         TARGET_ALTITUDE = 15
-        SAFETY_DISTANCE = 2
+        SAFETY_DISTANCE = 1
 
         self.target_position[2] = TARGET_ALTITUDE
 
@@ -140,54 +139,77 @@ class MotionPlanning(Drone):
         # Read in obstacle map
         data = np.loadtxt('colliders.csv', delimiter=',', dtype='Float64', skiprows=2)
         
-        # Define a grid for a particular altitude and safety margin around obstacles
-        _, north_offset, east_offset = create_grid(data, TARGET_ALTITUDE, SAFETY_DISTANCE)
+        # Define a grid for a particular altitude and safety margin around
+        # obstacles
+        grid, edges, north_offset, east_offset = create_grid_and_edges(data, TARGET_ALTITUDE, SAFETY_DISTANCE)
         print("North offset = {0}, east offset = {1}".format(north_offset, east_offset))
         # Define starting point on the grid (this is just grid center)
-        _start = (-north_offset, -east_offset)
-        # TODO: convert start position to current position rather than map center
-        start = (int(np.ceil(current_local_position[0]) + _start[0]), int(np.ceil(current_local_position[1]) + _start[1]), 0.0)
+        grid_start = (-north_offset, -east_offset)
+        # TODO: convert start position to current position rather than map
+        # center
+        start = (int(np.ceil(current_local_position[0]) + grid_start[0]), int(np.ceil(current_local_position[1]) + grid_start[1]))
         # Set goal as some arbitrary position on the grid
         #goal = (-north_offset + 10, -east_offset + 10)
         # TODO: adapt to set goal as latitude / longitude position and convert
-        goal_lat = 37.796000
-        goal_lon = -122.400052
+        goal_lat = 37.796793
+        goal_lon = -122.397182
         goal_global = [goal_lon, goal_lat, 0.0]
         goal_local = global_to_local(goal_global, self.global_home)
-        goal = (int(np.ceil(goal_local[0])) - north_offset, int(np.ceil(goal_local[1])) - east_offset, 0.0)
+        goal = (int(np.ceil(goal_local[0])) - north_offset, int(np.ceil(goal_local[1])) - east_offset)
         print("grid_goal", goal)
 
-        ## Run A* to find a path from start to goal
-        ## TODO: add diagonal motions with a cost of sqrt(2) to your A*
-        ## implementation
-        ## or move to a different search space such as a graph (not done here)
-        #print('Local Start and Goal: ', start, goal)
+        # Run A* to find a path from start to goal
+        # TODO: add diagonal motions with a cost of sqrt(2) to your A*
+        # implementation
+        # or move to a different search space such as a graph (not done here)
+        print('Local Start and Goal: ', start, goal)
 
-        # TODO - Create Graph NetworkX
-        sampler = Sampler(data)
-        polygons = sampler.polygons
-        nodes = sampler.sample(100)
-        G = create_graph(nodes, 5, polygons)
-        print (G.nodes())
-        g_nodes = G.nodes()
-        closest_start = closest_point(g_nodes, start)
-        closest_goal = closest_point(g_nodes, goal)
-        path, _ = a_star_graph(G, heuristic, closest_start, closest_goal)
+
+        G = create_2D_graph(edges)
+        s = find_closest_point(G, start)
+        g = find_closest_point(G, goal)
+
+
+        path = a_star_graph(G, heuristic, s, g)
         # TODO: prune path to minimize number of waypoints
+     
+
+        # Prune the path in 2D
+        smooth_path = prune_path_2d(path, grid)
+               
         # TODO (if you're feeling ambitious): Try a different approach
         # altogether!
 
-        # Convert path to waypoints
-        waypoints = [[int(p[0]) + north_offset, int(p[1]) + east_offset, TARGET_ALTITUDE, 0] for p in path]
+        # visualisation
+        plt.imshow(grid, cmap='Greys', origin='lower')
+        plt.plot(start[1], start[0], 'xr')
+        plt.plot(goal[1], goal[0], 'xr')
 
-        with open("wp.p", "wb") as f:
+        plt.plot(s[1], s[0], 'xb')
+        plt.plot(g[1], g[0], 'xb')
+
+        p = np.array(path)
+        pp = np.array(smooth_path)
+        #ppc = np.array(pruned_path_col)
+        plt.plot(p[:,1], p[:,0], 'r')
+        plt.plot(pp[:,1], pp[:,0], 'g')
+        #plt.plot(ppc[:,1], ppc[:,0], 'b')
+        plt.xlabel('EAST')
+        plt.ylabel('NORTH')
+        plt.show()
+
+
+        # Convert path to waypoints
+        waypoints = [[int(p[0]) + north_offset, int(p[1]) + east_offset, TARGET_ALTITUDE, 0] for p in smooth_path]
+
+        with open("wp.pi", mode="wb") as f:
             pickle.dump(waypoints, f)
-        print (waypoints)
+
+        with open("wp.pi", mode="rb") as f:
+            wp = pickle.load(f)
+
         # Set self.waypoints
-        with open("wp.p", "rb") as f:
-            pw = pickle.load(f)
-        self.waypoints = pw
-        print (pw)
+        self.waypoints = wp
         # TODO: send waypoints to sim (this is just for visualization of
         # waypoints)
         self.send_waypoints()
@@ -211,7 +233,7 @@ if __name__ == "__main__":
     parser.add_argument('--host', type=str, default='127.0.0.1', help="host address, i.e. '127.0.0.1'")
     args = parser.parse_args()
 
-    conn = MavlinkConnection('tcp:{0}:{1}'.format(args.host, args.port), timeout=200)
+    conn = MavlinkConnection('tcp:{0}:{1}'.format(args.host, args.port), timeout=60)
     drone = MotionPlanning(conn)
     time.sleep(1)
 
